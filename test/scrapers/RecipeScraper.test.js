@@ -191,33 +191,29 @@ test('should move to next recipe if max retries is reached connecting to the DB'
     scraper.storeRecipe(mockRecipe);
 });
 
-/*
-Tricky situation with this test. setTimeout is called after the promise rejects. 
-This happens after all the code in this test runs, so even 'jest.runAllTimers' will 
-be called before the timer is set. There's nothing in the 'catch' that can be grabbed by the test to 
-indicate the promise has rejected.
-*/
-// test('should retry if the query fails', () => {
-//     sql.connect.mockImplementation((__config, callback) => {
-//         callback();
-//     });
-//     const expectedCalls = sql.Request.mock.calls.length + 1;
-//     sql.Request.mockImplementation(() => {
-//         return {
-//             query: jest.fn(() => {
-//                 return Promise.reject('because reasons');
-//             })
-//         };
-//     });
-//     let scraper = new RecipeScraper();
-//     scraper.nextRecipe = jest.fn(() => {});
-//     scraper.storeRetry = scraper.maxRetries - 1;
-//     scraper.storeRecipe(mockRecipe);
-//     jest.runAllTimers();
-//     expect(scraper.nextRecipe).not.toHaveBeenCalled();
-//     expect(sql.Request.mock.calls.length).toBe(expectedCalls);
-//     expect(scraper.storeRetry).toBe(scraper.maxRetries);
-// });
+test('should retry if the query fails', (done) => {
+    sql.connect.mockImplementation((__config, callback) => {
+        callback();
+    });
+    const expectedCalls = sql.Request.mock.calls.length + 1;
+    sql.Request.mockImplementation(() => {
+        return {
+            query: jest.fn(() => {
+                return Promise.reject('because reasons');
+            })
+        };
+    });
+    let scraper = new RecipeScraper();
+    scraper.nextRecipe = jest.fn(() => {});
+    scraper.storeRetry = scraper.maxRetries - 1;
+    scraper.storeRecipe(mockRecipe).catch(() => {
+        jest.runAllTimers();
+        expect(scraper.nextRecipe).toHaveBeenCalled();
+        expect(sql.Request.mock.calls.length).toBe(expectedCalls);
+        expect(scraper.storeRetry).toBe(scraper.maxRetries);
+        done();
+    });
+});
 
 test('should continue to the next recipe if the query fails max times', (done) => {
     sql.connect.mockImplementation((__config, callback) => {

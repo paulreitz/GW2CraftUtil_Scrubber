@@ -4,7 +4,7 @@ import request from 'request';
 import sql from 'mssql';
 import ItemScraper from '../../src/scrapers/ItemScraper';
 import { mockRecipeSet } from '../fixtures/mockRecipes';
-import { mockItem, mockItemNoName, mockItemNoDefaultSkin } from '../fixtures/mockItems';
+import { mockItem, mockItemNoName, mockItemNoDefaultSkin, mockItemNoDetails } from '../fixtures/mockItems';
 
 jest.useFakeTimers();
 
@@ -98,31 +98,67 @@ test('should fail and exit if cannot connect to DB after max retries', () => {
 });
 
 // More promise/timeout issues.
-// test('should retry if the recipe query fails', () => {
-//     sql.connect.mockImplementation((__config, callback) => {
-//         callback();
-//     });
-//     sql.Request.mockImplementation(() => {
-//         return {
-//             query: jest.fn(() => {
-//                 return Promise.reject('nope');
-//             })
-//         };
-//     });
-//     const scraper = new ItemScraper();
-//     const getItemIDs = scraper.getItemIDs.bind(scraper);
-//     let run = true;
-//     scraper.getItemIDs = jest.fn(() => {
-//         if (run) {
-//             run = false;
-//             getItemIDs();
-//         }
-//     });
-//     scraper.getRetry = scraper.maxRetries - 1;
-//     scraper.getItemIDs();
-//     jest.runAllTimers();
-//     expect(scraper.getRetry).toBe(scraper.maxRetries);
-// });
+test('should retry if the recipe query fails', (done) => {
+    sql.connect.mockImplementation((__config, callback) => {
+        callback();
+    });
+    sql.Request.mockImplementation(() => {
+        return {
+            query: jest.fn(() => {
+                return Promise.reject('nope');
+            })
+        };
+    });
+    const scraper = new ItemScraper();
+    const getItemIDs = scraper.getItemIDs.bind(scraper);
+    let run = true;
+    scraper.getItemIDs = jest.fn(() => {
+        if (run) {
+            run = false;
+            return getItemIDs();
+        }
+        else {
+            return Promise.resolve();
+        }
+    });
+    scraper.getRetry = scraper.maxRetries - 1;
+    scraper.getItemIDs().catch(() => {
+        jest.runAllTimers();
+        expect(scraper.getRetry).toBe(scraper.maxRetries);
+        done();
+    });
+});
+
+test('should reject if failing to get IDs after maxTries', (done) => {
+    sql.connect.mockImplementation((__config, callback) => {
+        callback();
+    });
+    sql.Request.mockImplementation(() => {
+        return {
+            query: jest.fn(() => {
+                return Promise.reject('not this time');
+            })
+        };
+    });
+    const scraper = new ItemScraper();
+    const getItemIDs = scraper.getItemIDs.bind(scraper);
+    let run = true;
+    scraper.getItemIDs = jest.fn(() => {
+        if (run) {
+            run = false;
+            return getItemIDs();
+        }
+        else {
+            return Promise.resolve();
+        }
+    });
+    scraper.getRetry = scraper.maxRetries;
+    scraper.getItemIDs().catch(() => {
+        jest.runAllTimers();
+        expect(scraper.getRetry).toBe(scraper.maxRetries);
+        done();
+    });
+});
 
 test('should call storeItem if item data was successfully retrieved from the API', () => {
     request.mockImplementation((__url, callback) => {
@@ -217,6 +253,13 @@ test('should return query string with default_skin set to 0 if default_skin does
     const expectedString = 'UpdateOrInsertItem @id=88, @name=\'Carrion Seer Coat of the Centaur\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=0, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{\"some\":\"detals\",\"with\":\"single &lsquo; quote\"}\'';
     const scraper = new ItemScraper();
     const queryString = scraper.buildQueryString(mockItemNoDefaultSkin);
+    expect(queryString).toBe(expectedString);
+});
+
+test('should return query string with empty object for details if no details provided', () => {
+    const expectedString = 'UpdateOrInsertItem @id=88, @name=\'Carrion Seer Coat of the Centaur\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=9, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{}\'';
+    const scraper = new ItemScraper();
+    const queryString = scraper.buildQueryString(mockItemNoDetails);
     expect(queryString).toBe(expectedString);
 });
 

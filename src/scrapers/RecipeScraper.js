@@ -152,36 +152,13 @@ class RecipeScraper {
         END
     */
     storeRecipe(body) {
-        console.log('running storeRecipe...');
-        const queryString = this.buildQuieryString(body);
-        sql.connect(dbConfig, (err) => {
-            if (err) {
-                console.log('error', err);
-                if (this.storeRetry < this.maxRetries) {
-                    setTimeout(() => {
-                        this.storeRetry++;
-                        this.nextRecipe();
-                    }, this.retryTimeMs * this.storeRetry);
-                }
-                else {
-                    this.failedRecipes.push(this.recipes[this.current]);
-                    this.storeRetry = 0;
-                    this.current++;
-                    this.nextRecipe();
-                }
-            }
-            else {
-                const req = new sql.Request();
-                req.query(queryString).then(() => {
-                    console.log(`saved recipe ${body.id}.`);
-                    this.current++;
-                    this.nextRecipe();
-                }).catch((error) => {
-                    console.log('Error Storing: ', error);
-                    console.log(`${this.storeRetry} < ${this.maxRetries}?`);
+        return new Promise((resolve, reject) => {
+            console.log('running storeRecipe...');
+            const queryString = this.buildQuieryString(body);
+            sql.connect(dbConfig, (err) => {
+                if (err) {
+                    console.log('error', err);
                     if (this.storeRetry < this.maxRetries) {
-                        // CODE COVERAGE NOTE: This test is currently disabled, as there's a timing issue with the promise/setTimeOut - working on it.
-                        console.log('set timeout...');
                         setTimeout(() => {
                             this.storeRetry++;
                             this.nextRecipe();
@@ -192,11 +169,39 @@ class RecipeScraper {
                         this.storeRetry = 0;
                         this.current++;
                         this.nextRecipe();
+                        reject(err);
                     }
-                })
-            }
-        })
-    }
+                }
+                else {
+                    const req = new sql.Request();
+                    req.query(queryString).then(() => {
+                        console.log(`saved recipe ${body.id}.`);
+                        this.current++;
+                        this.nextRecipe();
+                        resolve();
+                    }).catch((error) => {
+                        console.log('Error Storing: ', error);
+                        console.log(`${this.storeRetry} < ${this.maxRetries}?`);
+                        if (this.storeRetry < this.maxRetries) {
+                            console.log('set timeout...');
+                            setTimeout(() => {
+                                this.storeRetry++;
+                                this.nextRecipe();
+                            }, this.retryTimeMs * this.storeRetry);
+                            reject(error); // Less than ideal, this is only for testing.
+                        }
+                        else {
+                            this.failedRecipes.push(this.recipes[this.current]);
+                            this.storeRetry = 0;
+                            this.current++;
+                            this.nextRecipe();
+                            reject(error);
+                        }
+                    })
+                }
+            })
+        });
+    } // end function
 }
 
 export default RecipeScraper;

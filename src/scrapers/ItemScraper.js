@@ -21,46 +21,52 @@ class ItemScraper {
     }
 
     getItemIDs() {
-        sql.connect(dbConfig, (err) => {
-            if (err) {
-                if (this.getRetry < this.maxRetries) {
-                    setTimeout(() => {
-                        this.getRetry++;
-                        this.getItemIDs();
-                    }, this.getRetry * this.retryTimeMs);
+        return new Promise((resolve, reject) => {
+            sql.connect(dbConfig, (err) => {
+                if (err) {
+                    if (this.getRetry < this.maxRetries) {
+                        setTimeout(() => {
+                            this.getRetry++;
+                            this.getItemIDs();
+                        }, this.getRetry * this.retryTimeMs);
+                    }
+                    else {
+                        console.log('Error: Could not retrieve recipes from DB: ', err);
+                        reject(err);
+                    }
+                    return;
                 }
-                else {
-                    console.log('Error: Could not retrieve recipes from DB: ', err);
-                }
-                return;
-            }
 
-            const req = new sql.Request();
-            req.query('SELECT * FROM Recipes ORDER BY id')
-            .then((set) => {
-                set.recordset.forEach((recipe) => {
-                    this.addItem(recipe.output_item_id);
-                    const ingredients = JSON.parse(recipe.ingredients);
-                    ingredients.forEach((ingredient) => {
-                        this.addItem(ingredient.item_id);
+                const req = new sql.Request();
+                req.query('SELECT * FROM Recipes ORDER BY id')
+                .then((set) => {
+                    set.recordset.forEach((recipe) => {
+                        this.addItem(recipe.output_item_id);
+                        const ingredients = JSON.parse(recipe.ingredients);
+                        ingredients.forEach((ingredient) => {
+                            this.addItem(ingredient.item_id);
+                        });
                     });
-                });
-                this.count = this.itemIDs.length;
-                this.current = 0;
-                this.nextItem();
-            })
-            .catch((error) => {
-                if (this.getRetry < this.maxRetries) {
-                    setTimeout(() => {
-                        this.getRetry++;
-                        this.getItemIDs();
-                    }, this.getRetry * this.retryTimeMs);
-                }
-                else {
-                    console.log('Error: Could not retrieve recipes from DB: ', error);
-                }
-                console.log('Error getting recipes ', error);
-            })
+                    this.count = this.itemIDs.length;
+                    this.current = 0;
+                    this.nextItem();
+                    resolve();
+                })
+                .catch((error) => {
+                    if (this.getRetry < this.maxRetries) {
+                        setTimeout(() => {
+                            this.getRetry++;
+                            this.getItemIDs();
+                        }, this.getRetry * this.retryTimeMs);
+                        reject('retry'); // Less than ideal, this Promise only exists for testing, so breaking the promise chain has no effect on the product.
+                    }
+                    else {
+                        console.log('Error: Could not retrieve recipes from DB: ', error);
+                        reject(error);
+                    }
+                    console.log('Error getting recipes ', error);
+                })
+            });
         });
     }
 
