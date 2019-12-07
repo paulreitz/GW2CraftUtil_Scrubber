@@ -117,13 +117,6 @@ test('should not call storeRecipe if there are no more IDs in the array', () => 
     expect(request.mock.calls.length).toBe(calls);
 });
 
-test('should build correct query string', () => {
-    const scraper = new RecipeScraper();
-    const result = scraper.buildQuieryString(mockRecipe);
-    const expectedResult = 'UpdateOrInsertRecipe @id=48, @type=\'Insignia\', @output_item_id=19799, @output_item_count=1, @min_rating=50, @time_to_craft_ms=1000, @disciplines=\'[\"Leatherworker\",\"Armorsmith\",\"Tailor\"]\', @flags=\'[\"AutoLearned\"]\', @ingredients=\'[{\"item_id\":71307,\"count\":1},{\"item_id\":24290,\"count\":8}]\', @chat_link=\'[&CTAAAAA=]\'';
-    expect(result).toBe(expectedResult);
-});
-
 test('should send query string when successfully connected to database', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();

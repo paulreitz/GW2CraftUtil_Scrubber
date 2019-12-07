@@ -1,7 +1,7 @@
 import request from 'request';
 import sql from 'mssql';
-import { tryParseItem } from '../utils/parser';
 import dbConfig from '../utils/dbConfig';
+import { buildItemQueryString } from '../utils/queryStrings';
 
 class ItemScraper {
     items = [];
@@ -128,23 +128,6 @@ class ItemScraper {
         }
     }
 
-    buildQueryString(body) {
-        const id = body.id;
-        const name = `'${(body.name || '').replace(/'/g, '&lsquo;')}'`;
-        const type = `'${body.type}'`;
-        const rating = body.level; // converting to different column name as 'level' has some other meaning in sql server
-        const rarity = `'${body.rarity}'`;
-        const vendorValue = body.vendor_value;
-        const defaultSkin = (body.default_skin || 0);
-        const gameTypes = tryParseItem(body.game_types);
-        const flags = tryParseItem(body.flags);
-        const restrictions = tryParseItem(body.restrictions);
-        const chatLink = `'${body.chat_link}'`;
-        const icon = `'${body.icon}'`;
-        const details = body.details ? tryParseItem(body.details, true) : '\'{}\'';
-        return `UpdateOrInsertItem @id=${id}, @name=${name}, @type=${type}, @rating=${rating}, @rarity=${rarity}, @vendor_value=${vendorValue}, @default_skin=${defaultSkin}, @game_types=${gameTypes}, @flags=${flags}, @restrictions=${restrictions}, @chat_link=${chatLink}, @icon=${icon}, @details=${details}`
-    }
-
     /*
     CREATE PROCEDURE UpdateOrInsertItem (
         @id INT,
@@ -213,7 +196,7 @@ class ItemScraper {
     storeItem(item) {
         return new Promise((resolve, reject) => {
             console.log('running storeItem for ', this.itemIDs[this.current]);
-            const queryString = this.buildQueryString(item);
+            const queryString = buildItemQueryString(item);
             sql.connect(dbConfig, (err) => {
                 if (err) {
                     if (this.storeRetry < this.maxRetries) {

@@ -1,6 +1,6 @@
 import request from 'request';
 import sql from 'mssql';
-import { tryParseItem } from '../utils/parser';
+import { buildRecipeQuieryString } from '../utils/queryStrings';
 import dbConfig from '../utils/dbConfig';
 
 class RecipeScraper {
@@ -84,20 +84,6 @@ class RecipeScraper {
         }
     }
 
-    buildQuieryString(body) {
-        const id = body.id;
-        const type = body.type;
-        const outputItemId = body.output_item_id;
-        const outputItemCount = body.output_item_count;
-        const minRating = body.min_rating;
-        const timeToCraftMs = body.time_to_craft_ms;
-        const disciplines = tryParseItem(body.disciplines);
-        const flags = tryParseItem(body.flags);
-        const ingredients = tryParseItem(body.ingredients);
-        const chatLink = body.chat_link;
-        return `UpdateOrInsertRecipe @id=${id}, @type='${type}', @output_item_id=${outputItemId}, @output_item_count=${outputItemCount}, @min_rating=${minRating}, @time_to_craft_ms=${timeToCraftMs}, @disciplines=${disciplines}, @flags=${flags}, @ingredients=${ingredients}, @chat_link='${chatLink}'`;
-    }
-
     /*
         CREATE PROCEDURE UpdateOrInsertRecipe (
             @id INT,
@@ -154,7 +140,7 @@ class RecipeScraper {
     storeRecipe(body) {
         return new Promise((resolve, reject) => {
             console.log('running storeRecipe...');
-            const queryString = this.buildQuieryString(body);
+            const queryString = buildRecipeQuieryString(body);
             sql.connect(dbConfig, (err) => {
                 if (err) {
                     console.log('error', err);

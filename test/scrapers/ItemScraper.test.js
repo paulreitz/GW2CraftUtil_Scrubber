@@ -331,34 +331,6 @@ test('should not run nextItem if there are no more items in the array', () => {
     expect(scraper.storeItem).not.toHaveBeenCalled();
 });
 
-test('should return the correct query string', () => {
-    const expectedString = 'UpdateOrInsertItem @id=88, @name=\'Carrion Seer Coat of the Centaur\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=9, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{\"some\":\"detals\",\"with\":\"single &lsquo; quote\"}\'';
-    const scraper = new ItemScraper();
-    const queryString = scraper.buildQueryString(mockItem);
-    expect(queryString).toBe(expectedString);
-});
-
-test('should return query string with empty string for name if name does not exist', () => {
-    const expectedString = 'UpdateOrInsertItem @id=88, @name=\'\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=9, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{\"some\":\"detals\",\"with\":\"single &lsquo; quote\"}\'';
-    const scraper = new ItemScraper();
-    const queryString = scraper.buildQueryString(mockItemNoName);
-    expect(queryString).toBe(expectedString);
-});
-
-test('should return query string with default_skin set to 0 if default_skin does not exist', () => {
-    const expectedString = 'UpdateOrInsertItem @id=88, @name=\'Carrion Seer Coat of the Centaur\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=0, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{\"some\":\"detals\",\"with\":\"single &lsquo; quote\"}\'';
-    const scraper = new ItemScraper();
-    const queryString = scraper.buildQueryString(mockItemNoDefaultSkin);
-    expect(queryString).toBe(expectedString);
-});
-
-test('should return query string with empty object for details if no details provided', () => {
-    const expectedString = 'UpdateOrInsertItem @id=88, @name=\'Carrion Seer Coat of the Centaur\', @type=\'Armor\', @rating=71, @rarity=\'Exotic\', @vendor_value=354, @default_skin=9, @game_types=\'[\"Activity\",\"Wvw\",\"Dungeon\",\"Pve\"]\', @flags=\'[\"SoulBindOnUse\"]\', @restrictions=\'[]\', @chat_link=\'[&AgFYAAAA]\', @icon=\'https://render.guildwars2.com/file/FB0AA64F98303AE5112408EF3DC8C7307EA118F8/61011.png\', @details=\'{}\'';
-    const scraper = new ItemScraper();
-    const queryString = scraper.buildQueryString(mockItemNoDetails);
-    expect(queryString).toBe(expectedString);
-});
-
 test('should correctly store an item to the database', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();
