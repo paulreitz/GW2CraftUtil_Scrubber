@@ -8,16 +8,17 @@ export default class Startup {
     }
 
     startScraping() {
-        if (this.scraper === 'recipe') {
-            const recipeScraper = new RecipeScraper();
-            recipeScraper.startScrape();
-        }
-        else if (this.scraper === 'item') {
-            const itemScraper = new ItemScraper();
-            itemScraper.getItemIDs();
-        }
-        else {
-            console.log('Please run with either \'recipe\' or \'item\' as the first argument');
+        switch (this.scraper) {
+            case 'recipe':
+                const recipeScraper = new RecipeScraper();
+                recipeScraper.startScrape();
+                break;
+            case 'item':
+                const itemScraper = new ItemScraper();
+                itemScraper.getItemIDs();
+                break;
+            default:
+                console.log('Please run with either \'recipe\' or \'item\' as the first argument');
         }
     }
 }
