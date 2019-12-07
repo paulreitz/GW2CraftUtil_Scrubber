@@ -1,0 +1,40 @@
+{
+  "name": "scraper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:dev": "webpack",
+    "run:recipe": "nodemon ./dist/scraper.js recipe",
+    "run:once:recipe": "node ./dist/scraper.js recipe",
+    "run:once:item": "node ./dist/scraper.js item",
+    "test": "jest --config=jest.config.json"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "coverageReporters": [
+      "html"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-jest": "^23.6.0",
+    "babel-loader": "^7.1.5",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-preset-env": "^1.7.0",
+    "cross-env": "^6.0.3",
+    "jest": "^23.6.0",
+    "nodemon": "^2.0.1",
+    "raf": "^3.4.1",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  },
+  "dependencies": {
+    "mssql": "^6.0.1",
+    "request": "^2.88.0"
+  }
+}
