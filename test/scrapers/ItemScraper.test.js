@@ -80,14 +80,28 @@ test('should not add any items or set any items if the query fails', () => {
 
 test('should call storeItem if item data was successfully retrieved from the API', () => {
     request.mockImplementation((__url, callback) => {
-        callback(null, {}, {test: 'data'});
+        callback(null, {}, '{\"test\": \"data\"}');
     });
     const scraper = new ItemScraper();
     scraper.storeItem = jest.fn(() => {});
     scraper.current = 0;
     scraper.count = 1;
+    scraper.itemIDs = [1337];
     scraper.nextItem();
     expect(scraper.storeItem).toHaveBeenCalled();
+});
+
+test('should not call storeItem if invalid data recieved from the API', () => {
+    request.mockImplementation((__url, callback) => {
+        callback(null, {}, 'invalid JSON}}}');
+    });
+    const scraper = new ItemScraper();
+    scraper.storeItem = jest.fn(() => {});
+    scraper.current = 0;
+    scraper.count = 1;
+    scraper.itemIDs = [1337];
+    scraper.nextItem();
+    expect(scraper.storeItem).not.toHaveBeenCalled();
 });
 
 test('should not call storeItem if there was an error fetching the item from the API', () => {

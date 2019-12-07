@@ -1,6 +1,7 @@
 import request from 'request';
 import sql from 'mssql';
 import { tryParseItem } from '../utils/parser';
+import dbConfig from '../utils/dbConfig';
 
 class ItemScraper {
     items = [];
@@ -10,13 +11,6 @@ class ItemScraper {
     storeRetry = 0;
     retryMax = 5;
 
-    dbConfig = {
-        server: 'localhost',
-        database: 'GW2Craft',
-        user: 'DevUser1',
-        password: '$uperM4n'
-    }
-
     addItem(id) {
         const index = this.itemIDs.indexOf(id);
         if (index === -1) {
@@ -25,7 +19,7 @@ class ItemScraper {
     }
 
     getItemIDs() {
-        sql.connect(this.dbConfig, (err) => {
+        sql.connect(dbConfig, (err) => {
             if (err) {
                 console.log('Error connectin to DB ', err);
                 return;
@@ -115,19 +109,19 @@ class ItemScraper {
     )
     AS BEGIN
     UPDATE Items SET 
-        ITems.id=@id,
-        ITems.name=@name,
-        ITems.type=@type,
-        ITems.rating=@rating,
-        ITems.rarity=@rarity,
-        ITems.vendor_value=@vendor_value,
-        ITems.default_skin=@default_skin,
-        ITems.game_types=@game_types,
-        ITems.flags=@flags,
-        ITems.restrictions=@restrictions,
-        ITems.chat_link=@chat_link,
-        ITems.icon=@icon,
-        ITems.details=@details
+        Items.id=@id,
+        Items.name=@name,
+        Items.type=@type,
+        Items.rating=@rating,
+        Items.rarity=@rarity,
+        Items.vendor_value=@vendor_value,
+        Items.default_skin=@default_skin,
+        Items.game_types=@game_types,
+        Items.flags=@flags,
+        Items.restrictions=@restrictions,
+        Items.chat_link=@chat_link,
+        Items.icon=@icon,
+        Items.details=@details
         WHERE id=@id
 
     IF @@ROWCOUNT = 0
@@ -165,7 +159,7 @@ class ItemScraper {
     storeItem(item) {
         console.log('running storeItem for ', this.itemIDs[this.current]);
         const queryString = this.buildQueryString(item);
-        sql.connect(this.dbConfig, (err) => {
+        sql.connect(dbConfig, (err) => {
             if (err) {
                 console.log('error: ', err);
             }

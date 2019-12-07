@@ -1,6 +1,7 @@
 import request from 'request';
 import sql from 'mssql';
 import { tryParseItem } from '../utils/parser';
+import dbConfig from '../utils/dbConfig';
 
 class RecipeScraper {
     current = 0;
@@ -13,13 +14,6 @@ class RecipeScraper {
     maxRetries = 5;
     failedRecipes = [];
     retryTimeMs = 500;
-
-    dbConfig = {
-        server: 'localhost',
-        database: 'GW2Craft',
-        user: 'DevUser1',
-        password: '$uperM4n'
-    }
 
     startScrape() {
         request('https://api.guildwars2.com/v2/recipes', (error, __response, body) => {
@@ -159,7 +153,7 @@ class RecipeScraper {
     storeRecipe(body) {
         console.log('running storeRecipe...');
         const queryString = this.buildQuieryString(body);
-        sql.connect(this.dbConfig, (err) => {
+        sql.connect(dbConfig, (err) => {
             if (err) {
                 console.log('error', err);
                 if (this.storeRetry < this.maxRetries) {
@@ -185,6 +179,7 @@ class RecipeScraper {
                     console.log('Error Storing: ', error);
                     console.log(`${this.storeRetry} < ${this.maxRetries}?`);
                     if (this.storeRetry < this.maxRetries) {
+                        // CODE COVERAGE NOTE: This test is currently disabled, as there's a timing issue with the promise/setTimeOut - working on it.
                         console.log('set timeout...');
                         setTimeout(() => {
                             this.storeRetry++;
