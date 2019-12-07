@@ -9,7 +9,9 @@ class ItemScraper {
     count = 0;
     itemIDs = [];
     storeRetry = 0;
-    retryMax = 5;
+    getRetry = 0;
+    maxRetries = 5;
+    retryTimeMs = 500;
 
     addItem(id) {
         const index = this.itemIDs.indexOf(id);
@@ -21,7 +23,15 @@ class ItemScraper {
     getItemIDs() {
         sql.connect(dbConfig, (err) => {
             if (err) {
-                console.log('Error connectin to DB ', err);
+                if (this.getRetry < this.maxRetries) {
+                    setTimeout(() => {
+                        this.getRetry++;
+                        this.getItemIDs();
+                    }, this.getRetry * this.retryTimeMs);
+                }
+                else {
+                    console.log('Error: Could not retrieve recipes from DB: ', err);
+                }
                 return;
             }
 
@@ -40,6 +50,15 @@ class ItemScraper {
                 this.nextItem();
             })
             .catch((error) => {
+                if (this.getRetry < this.maxRetries) {
+                    setTimeout(() => {
+                        this.getRetry++;
+                        this.getItemIDs();
+                    }, this.getRetry * this.retryTimeMs);
+                }
+                else {
+                    console.log('Error: Could not retrieve recipes from DB: ', error);
+                }
                 console.log('Error getting recipes ', error);
             })
         });
@@ -171,7 +190,7 @@ class ItemScraper {
                     this.nextItem();
                 }).catch((error) => {
                     console.log('Error writing item: ', error);
-                    if (this.storeRetry < this.retryMax) {
+                    if (this.storeRetry < this.maxRetries) {
                         this.storeRetry++;
                         this.nextItem();
                     }

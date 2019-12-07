@@ -80,6 +80,7 @@ class RecipeScraper {
         }
         else {
             console.log('Scraping complete');
+            console.log(this.failedRecipes);
         }
     }
 
