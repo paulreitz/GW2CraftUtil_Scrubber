@@ -12,6 +12,7 @@ class ItemScraper {
     getRetry = 0;
     maxRetries = 5;
     retryTimeMs = 500;
+    failedItems = [];
 
     addItem(id) {
         const index = this.itemIDs.indexOf(id);
@@ -49,6 +50,7 @@ class ItemScraper {
                     });
                     this.count = this.itemIDs.length;
                     this.current = 0;
+                    this.getRetry = 0;
                     this.nextItem();
                     resolve();
                 })
@@ -75,27 +77,54 @@ class ItemScraper {
             console.log('getting item by id: ', this.itemIDs[this.current]);
             request(`https://api.guildwars2.com/v2/items/${this.itemIDs[this.current]}`, (error, response, body) => {
                 if (error) {
-                    console.log('could not fetch item', this.itemIDs[this.current]);
+                    if (this.getRetry < this.maxRetries) {
+                        setTimeout(() => {
+                            this.getRetry++;
+                            this.nextItem();
+                        }, this.getRetry * this.retryTimeMs);
+                    }
+                    else {
+                        console.log('could not fetch item', this.itemIDs[this.current]);
+                        this.failedItems.push(this.itemIDs[this.current]);
+                        this.getRetry = 0;
+                        this.current++;
+                        this.nextItem();
+                    }
                 }
                 else if (body.text && body.text === 'no such id') {
                     console.log('No item for the given id: ', this.itemIDs[this.current]);
                     this.current++
                     this.storeRetry = 0;
+                    this.failedItems.push(this.itemIDs[this.current]);
                     this.nextItem();
                 }
                 else {
                     try {
                         const item = JSON.parse(body);
+                        this.storeRetry = 0;
                         this.storeItem(item);
                     }
                     catch(e) {
-                        console.log('could not parse body: ', e);
+                        if (this.getRetry < this.maxRetries) {
+                            setTimeout(() => {
+                                this.getRetry++;
+                                this.nextItem();
+                            }, this.getRetry * this.maxRetries);
+                        }
+                        else {
+                            console.log('could not parse body: ', e);
+                            this.getRetry = 0;
+                            this.failedItems.push(this.itemIDs[this.current]);
+                            this.current++;
+                            this.nextItem();
+                        }
                     }
                 }
             })
         }
         else {
             console.log('Scraping of items complete');
+            console.log(this.failedItems);
         }
     }
 
@@ -182,33 +211,55 @@ class ItemScraper {
     END
     */
     storeItem(item) {
-        console.log('running storeItem for ', this.itemIDs[this.current]);
-        const queryString = this.buildQueryString(item);
-        sql.connect(dbConfig, (err) => {
-            if (err) {
-                console.log('error: ', err);
-            }
-            else {
-                const req = new sql.Request();
-                req.query(queryString).then(() => {
-                    this.current++;
-                    this.storeRetry = 0;
-                    this.nextItem();
-                }).catch((error) => {
-                    console.log('Error writing item: ', error);
+        return new Promise((resolve, reject) => {
+            console.log('running storeItem for ', this.itemIDs[this.current]);
+            const queryString = this.buildQueryString(item);
+            sql.connect(dbConfig, (err) => {
+                if (err) {
                     if (this.storeRetry < this.maxRetries) {
-                        this.storeRetry++;
-                        this.nextItem();
+                        setTimeout(() => {
+                            this.storeRetry++;
+                            this.storeItem(item);
+                        }, this.storeRetry * this.maxRetries);
                     }
                     else {
+                        console.log('error: ', err);
                         this.storeRetry = 0;
-                        this.current++
+                        this.failedItems.push(this.itemIDs[this.current]);
+                        this.current++;
                         this.nextItem();
+                        reject(err);
                     }
-                })
-            }
-        })
-    }
+                    
+                }
+                else {
+                    const req = new sql.Request();
+                    req.query(queryString).then(() => {
+                        this.current++;
+                        this.storeRetry = 0;
+                        this.nextItem();
+                        resolve();
+                    }).catch((error) => {
+                        console.log('Error writing item: ', error);
+                        if (this.storeRetry < this.maxRetries) {
+                            setTimeout(() => {
+                                this.storeRetry++;
+                                this.nextItem();
+                            }, this.storeRetry * this.maxRetries);
+                            reject('doing retry');
+                        }
+                        else {
+                            this.storeRetry = 0;
+                            this.failedItems.push(this.itemIDs[this.current]);
+                            this.current++
+                            this.nextItem();
+                            reject(error);
+                        }
+                    })
+                }
+            })
+        });
+    } // end function
 }
 
 export default ItemScraper;

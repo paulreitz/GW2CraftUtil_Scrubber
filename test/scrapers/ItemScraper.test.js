@@ -97,7 +97,6 @@ test('should fail and exit if cannot connect to DB after max retries', () => {
     expect(scraper.getRetry).toBe(scraper.maxRetries);
 });
 
-// More promise/timeout issues.
 test('should retry if the recipe query fails', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();
@@ -173,7 +172,63 @@ test('should call storeItem if item data was successfully retrieved from the API
     expect(scraper.storeItem).toHaveBeenCalled();
 });
 
-test('should not call storeItem if invalid data recieved from the API', () => {
+test('should retry if failed to get item from API', () => {
+    request.mockImplementation((__url, callback) => {
+        callback('error');
+    });
+    const scraper = new ItemScraper();
+    scraper.storeItem = jest.fn(() => {});
+    scraper.getRetry = scraper.maxRetries - 1;
+    scraper.failedItems = [];
+    scraper.current = 0;
+    scraper.count = 1;
+    scraper.itemIDs = [1337];
+
+    // Only call nextItem once
+    const nextItem = scraper.nextItem.bind(scraper);
+    let run = true;
+    scraper.nextItem = jest.fn(() => {
+        if (run) {
+            run = false;
+            nextItem();
+        }
+    });
+    scraper.nextItem();
+    jest.runAllTimers();
+    expect(scraper.getRetry).toBe(scraper.maxRetries);
+    expect(scraper.failedItems.length).toBe(0);
+});
+
+test('should continue to the next item if failed to retrieve item from API after max tries', () => {
+    request.mockImplementation((__url, callback) => {
+        callback('error');
+    });
+
+    const scraper = new ItemScraper();
+    scraper.storeItem = jest.fn(() => {});
+    scraper.getRetry = scraper.maxRetries;
+    scraper.failedItems = [];
+    scraper.current = 0;
+    scraper.count = 1;
+    scraper.itemIDs = [1337];
+
+    // only call nextItem once
+    const nextItem = scraper.nextItem.bind(scraper);
+    let run = true;
+    scraper.nextItem = jest.fn(() => {
+        if (run) {
+            run = false;
+            nextItem();
+        }
+    });
+    scraper.nextItem();
+    expect(scraper.getRetry).toBe(0);
+    expect(scraper.current).toBe(1);
+    expect(scraper.failedItems.length).toBe(1);
+    expect(scraper.failedItems[0]).toBe(1337);
+});
+
+test('should retry if invalid data recieved from the API', () => {
     request.mockImplementation((__url, callback) => {
         callback(null, {}, 'invalid JSON}}}');
     });
@@ -181,9 +236,50 @@ test('should not call storeItem if invalid data recieved from the API', () => {
     scraper.storeItem = jest.fn(() => {});
     scraper.current = 0;
     scraper.count = 1;
+    scraper.getRetry = scraper.maxRetries - 1;
     scraper.itemIDs = [1337];
+
+    // call nextItem once
+    const nextItem = scraper.nextItem.bind(scraper);
+    let run = true;
+    scraper.nextItem = jest.fn(() => {
+        if (run) {
+            run = false;
+            nextItem();
+        }
+    });
     scraper.nextItem();
+    jest.runAllTimers();
     expect(scraper.storeItem).not.toHaveBeenCalled();
+    expect(scraper.getRetry).toBe(scraper.maxRetries);
+});
+
+test('should move to the next item if failed to parse item after max tries', () => {
+    request.mockImplementation((__rul, callback) => {
+        callback(null, {}, 'invalid JSON}}}');
+    });
+    const scraper = new ItemScraper();
+    scraper.storeItem = jest.fn(() => {});
+    scraper.current = 0;
+    scraper.count = 1;
+    scraper.getRetry = scraper.maxRetries;
+    scraper.itemIDs = [1337]
+    scraper.failedItems = [];
+
+    // call nextItem once
+    const nextItem = scraper.nextItem.bind(scraper);
+    let run = true;
+    scraper.nextItem = jest.fn(() => {
+        if (run) {
+            run = false;
+            nextItem();
+        }
+    });
+    scraper.nextItem();
+    expect(scraper.getRetry).toBe(0);
+    expect(scraper.current).toBe(1);
+    expect(scraper.failedItems.length).toBe(1);
+    expect(scraper.failedItems[0]).toBe(1337);
 });
 
 test('should not call storeItem if there was an error fetching the item from the API', () => {
@@ -284,7 +380,7 @@ test('should correctly store an item to the database', (done) => {
     scraper.storeItem(mockItem);
 });
 
-test('should not save item to DB if connection failed', () => {
+test('should retry saving item to DB if connection failed', () => {
     sql.connect.mockImplementation((__config, callback) => {
         callback('error');
     });
@@ -296,12 +392,52 @@ test('should not save item to DB if connection failed', () => {
         };
     });
     const scraper = new ItemScraper();
+    scraper.storeRetry = scraper.maxRetries - 1;
     // mock nextItem in case something goes wrong with the test.
     scraper.nextItem = jest.fn(() => {});
+
+    // run storeItem once
+    const storeItem = scraper.storeItem.bind(scraper);
+    let run = true;
+    scraper.storeItem = jest.fn((item) => {
+        if (run) {
+            run = false;
+            storeItem(item);
+        }
+    })
     const expectedCalls = sql.Request.mock.calls.length;
     scraper.storeItem(mockItem);
+    jest.runAllTimers();
     expect(sql.Request.mock.calls.length).toBe(expectedCalls);
+    expect(scraper.storeRetry).toBe(scraper.maxRetries);
 });
+
+test('should continue to next item if the connection fails after max tries', (done) => {
+    sql.connect.mockImplementation((__config, callback) => {
+        callback('error');
+    });
+    sql.Request.mockImplementation(() => {
+        return { 
+            query: jest.fn(() => {
+                return Promise.reject('error');
+            })
+        };
+    });
+    const scraper = new ItemScraper();
+    scraper.storeRetry = scraper.maxRetries;
+    scraper.itemIDs = [1337];
+    scraper.failedItems = [];
+    scraper.current = 0;
+    scraper.count = 1;
+    scraper.nextItem = jest.fn(() => {
+        expect(scraper.storeRetry).toBe(0);
+        expect(scraper.current).toBe(1);
+        expect(scraper.failedItems.length).toBe(1);
+        expect(scraper.failedItems[0]).toBe(1337);
+        done();
+    });
+    scraper.storeItem(mockItem);
+})
 
 test('should retry if the item fails to save to the DB', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
@@ -317,12 +453,26 @@ test('should retry if the item fails to save to the DB', (done) => {
     const scraper = new ItemScraper();
     scraper.storeRetry = 0;
     scraper.current = 0;
-    scraper.nextItem = jest.fn(() => {
-        expect(scraper.storeRetry).toBe(1);
-        expect(scraper.current).toBe(0);
+    scraper.storeRetry = scraper.maxRetries - 1;
+    scraper.nextItem = jest.fn(() => {});
+
+    // call storeItem once 
+    const storeItem = scraper.storeItem.bind(scraper);
+    let run = true;
+    scraper.storeItem = jest.fn((item) => {
+        if (run) {
+            run = false;
+            return storeItem(item);
+        }
+        else {
+            return Promise.reject('nope');
+        }
+    })
+    scraper.storeItem(mockItem).catch(() => {
+        jest.runAllTimers();
+        expect(scraper.storeRetry).toBe(scraper.maxRetries);
         done();
     });
-    scraper.storeItem(mockItem);
 });
 
 test('should move to next item if an item fails to save with the max tries', (done) => {
