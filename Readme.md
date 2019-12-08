@@ -1,5 +1,5 @@
 # GW2 Crafting Util
-## API Scribber
+## API Scrubber
 ### Overview
 The purpose of this utility is to pull all GW2 crafting recipes and associated items and push them to a local database that can be directly accessed from an Express server.
 
