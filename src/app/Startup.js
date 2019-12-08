@@ -1,6 +1,7 @@
 import RecipeScraper from '../scrapers/RecipeScraper';
 import ItemScraper from '../scrapers/ItemScraper';
 import SingleRecipe from '../scrapers/SingleRecipe';
+import SingleItem from '../scrapers/SingleItem';
 
 export default class Startup {
     scraper = undefined;
@@ -34,7 +35,8 @@ export default class Startup {
                         singleRecipe.fetchRecipe();
                         break;
                     case 'item':
-                        console.log('single item here');
+                        const singleItem = new SingleItem(this.id);
+                        singleItem.fetchItem();
                         break;
                     default:
                         console.log('For single entry, please specify \'recipe\' or \'item\'.');

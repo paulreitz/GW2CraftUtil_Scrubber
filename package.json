@@ -8,6 +8,7 @@
     "scrape:recipes": "node ./dist/scraper.js recipe",
     "scrape:items": "node ./dist/scraper.js item",
     "single:recipe": "node ./dist/scraper.js single recipe",
+    "single:item": "node ./dist/scraper.js single item",
     "test": "jest --config=jest.config.json"
   },
   "jest": {

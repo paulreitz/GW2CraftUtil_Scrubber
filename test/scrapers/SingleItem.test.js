@@ -2,76 +2,75 @@ jest.mock('request');
 jest.mock('mssql');
 import request from 'request';
 import sql from 'mssql';
-import SingleRecipe from '../../src/scrapers/SingleRecipe';
-import { mockRecipe } from '../fixtures/mockRecipes';
+import SingleItem from '../../src/scrapers/SingleItem';
+import { mockItem } from '../fixtures/mockItems';
 
 jest.useFakeTimers();
 const mockId = 1337;
 
-test('should setup recipe id in costructor', () => {
-    const single = new SingleRecipe(mockId);
-    expect(single.recipeID).toBe(mockId);
+test('should setup item id in constructor', () => {
+    const single = new SingleItem(mockId);
+    expect(single.itemID).toBe(mockId);
 });
 
-test('should store the recipe after succesfully fetching the recipe from the API', () => {
+test('should call storeItem after successfully fetching the item from the API', () => {
     request.mockImplementation((__url, callback) => {
         const body = JSON.stringify({valid: 'JSON'});
         callback(null, {}, body);
     });
-    const single = new SingleRecipe(mockId);
-    single.storeRecipe = jest.fn((__recipe) => {
+    const single = new SingleItem(mockId);
+    single.storeItem = jest.fn((__item) => {
         return Promise.resolve();
     });
-    single.fetchRecipe();
-    expect(single.storeRecipe).toHaveBeenCalled();
+    single.fetchItem();
+    expect(single.storeItem).toHaveBeenCalled();
     expect(single.retry).toBe(0);
 });
 
-test('should retry fetching recipe from the API on failure', () => {
+test('should retry fetching item from the API on failure', () => {
     request.mockImplementation((__url, callback) => {
         callback('error');
     });
-    const single = new SingleRecipe(mockId);
+    const single = new SingleItem(mockId);
     single.retry = single.maxRetries - 1;
-    // call fetchRecipe once
-    const fetchRecipe = single.fetchRecipe.bind(single);
+
+    const fetchItem = single.fetchItem.bind(single);
     let run = true;
-    single.fetchRecipe = jest.fn(() => {
+    single.fetchItem = jest.fn(() => {
         if (run) {
             run = false;
-            fetchRecipe();
+            fetchItem();
         }
     });
-    const expectedCalls = single.fetchRecipe.mock.calls.length + 2;
-    single.fetchRecipe();
+    const expectedCalls = single.fetchItem.mock.calls.length + 2;
+    single.fetchItem();
     jest.runAllTimers();
     expect(single.retry).toBe(single.maxRetries);
-    expect(single.fetchRecipe.mock.calls.length).toBe(expectedCalls);
+    expect(single.fetchItem.mock.calls.length).toBe(expectedCalls);
 });
 
-test('Should exit when failing to fetch recipe from API after maxTries', () => {
+test('should exit when failing to fetch the item from the API after maxTries', () => {
     request.mockImplementation((__url, callback) => {
         callback('error');
     });
-    const single = new SingleRecipe(mockId);
+    const single = new SingleItem(mockId);
     single.retry = single.maxRetries;
-    // call fetchRecipe once
-    const fetchRecipe = single.fetchRecipe.bind(single);
+    const fetchItem = single.fetchItem.bind(single);
     let run = true;
-    single.fetchRecipe = jest.fn(() => {
+    single.fetchItem = jest.fn(() => {
         if (run) {
             run = false;
-            fetchRecipe();
+            fetchItem();
         }
     });
-    const expectedCalls = single.fetchRecipe.mock.calls.length + 1;
-    single.fetchRecipe();
+    const expectedCalls = single.fetchItem.mock.calls.length + 1;
+    single.fetchItem();
     jest.runAllTimers();
     expect(single.retry).toBe(single.maxRetries);
-    expect(single.fetchRecipe.mock.calls.length).toBe(expectedCalls);
+    expect(single.fetchItem.mock.calls.length).toBe(expectedCalls);
 });
 
-test('should exit after succesfully storing the recipe to the database', (done) => {
+test('should exit after succesfully storing the item to the database', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();
     });
@@ -84,8 +83,8 @@ test('should exit after succesfully storing the recipe to the database', (done) 
     });
     const originalExit = process.exit;
     process.exit = jest.fn(() => {});
-    const single = new SingleRecipe();
-    single.storeRecipe(mockId)
+    const single = new SingleItem();
+    single.storeItem(mockId)
     .then(() => {
         expect(true).toBe(true); // If we're here, the test passed.
         expect(process.exit).toHaveBeenCalled();
@@ -99,7 +98,7 @@ test('should exit after succesfully storing the recipe to the database', (done) 
     });
 });
 
-test('should retry if failed to connect to database', () => {
+test('should retry if failed to connect to databse', () => {
     sql.connect.mockImplementation((__config, callback) => {
         callback('error');
     });
@@ -110,19 +109,18 @@ test('should retry if failed to connect to database', () => {
             })
         };
     });
-    const single = new SingleRecipe(mockId);
-    // run storeRecipe once
-    const storeRecipe = single.storeRecipe.bind(single);
+    const single = new SingleItem(mockId);
+    const storeItem = single.storeItem.bind(single);
     let run = true;
-    single.storeRecipe = jest.fn((recipe) => {
-        if (run) {
+    single.storeItem = jest.fn((item) => {
+        if (run) { 
             run = false;
-            return storeRecipe(recipe);
+            return storeItem(item);
         }
         return Promise.resolve();
-    })
+    });
     single.retry = single.maxRetries - 1;
-    single.storeRecipe(mockRecipe);
+    single.storeItem(mockItem);
     jest.runAllTimers();
     expect(single.retry).toBe(single.maxRetries);
 });
@@ -131,15 +129,15 @@ test('should exit after failing to connect to the database after max tries', (do
     sql.connect.mockImplementation((__config, callback) => {
         callback('error');
     });
-    const single = new SingleRecipe(mockId);
+    const single = new SingleItem(mockId);
     single.retry = single.maxRetries;
-    single.storeRecipe(mockRecipe).catch(() => {
+    single.storeItem(mockItem).catch(() => {
         expect(single.retry).toBe(single.maxRetries);
         done();
-    });
+    })
 });
 
-test('should retry after failing to store recipe to the database', (done) => {
+test('should retry after failing to store item to the database', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();
     });
@@ -150,29 +148,29 @@ test('should retry after failing to store recipe to the database', (done) => {
             })
         };
     });
-    const single = new SingleRecipe(mockId);
+    const single = new SingleItem(mockId);
     single.retry = single.maxRetries - 1;
 
-    // run storeRecipe once
-    const storeRecipe = single.storeRecipe.bind(single);
+    // run storeItem once
+    const storeItem = single.storeItem.bind(single);
     let run = true;
-    single.storeRecipe = jest.fn((recipe) => {
+    single.storeItem = jest.fn((recipe) => {
         if (run) {
             run = false;
-            return storeRecipe(recipe);
+            return storeItem(recipe);
         }
         else {
             return Promise.reject();
         }
     });
-    single.storeRecipe(mockRecipe).catch(() => {
+    single.storeItem(mockItem).catch(() => {
         jest.runAllTimers();
         expect(single.retry).toBe(single.maxRetries);
         done();
     });
 });
 
-test('should exit if failing to save recipe to database after max tries', (done) => {
+test('should exit if failing to save item to database after max tries', (done) => {
     sql.connect.mockImplementation((__config, callback) => {
         callback();
     });
@@ -183,16 +181,16 @@ test('should exit if failing to save recipe to database after max tries', (done)
             })
         };
     });
-    const single = new SingleRecipe(mockId);
+    const single = new SingleItem(mockId);
     single.retry = single.maxRetries;
-    const storeRecipe = single.storeRecipe.bind(single);
-    single.storeRecipe = jest.fn((recipe) => {
-        return storeRecipe(recipe);
+    const storeItem = single.storeItem.bind(single);
+    single.storeItem = jest.fn((item) => {
+        return storeItem(item);
     });
-    const expectedCalls = single.storeRecipe.mock.calls.length + 1;
-    single.storeRecipe(mockRecipe).catch(() => {
+    const expectedCalls = single.storeItem.mock.calls.length + 1;
+    single.storeItem(mockItem).catch(() => {
         expect(single.retry).toBe(single.maxRetries);
-        expect(single.storeRecipe.mock.calls.length).toBe(expectedCalls);
+        expect(single.storeItem.mock.calls.length).toBe(expectedCalls);
         done();
     });
-});
+})
