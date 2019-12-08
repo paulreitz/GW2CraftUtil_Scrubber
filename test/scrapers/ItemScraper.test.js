@@ -299,7 +299,8 @@ test('should not call storeItem if there was an error fetching the item from the
 test('should not store item if API returns \'no such id\'', () => {
     request.mockImplementation((url, callback) => {
         if (url.endsWith('1')) {
-            callback(null, {}, { text: 'no such id' });
+            const body = JSON.stringify({ text: 'no such id' });
+            callback(null, {}, body);
         }
         else {
             callback('error');

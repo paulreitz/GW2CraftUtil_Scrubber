@@ -74,7 +74,8 @@ class ItemScraper {
 
     nextItem() {
         if (this.current < this.count) {
-            console.log('getting item by id: ', this.itemIDs[this.current]);
+            const percent = Math.round((this.current/this.count) * 100);
+            console.log(`getting item by id: ${this.itemIDs[this.current]} --- ${this.current} of ${this.count} - %${percent}`);
             request(`https://api.guildwars2.com/v2/items/${this.itemIDs[this.current]}`, (error, response, body) => {
                 if (error) {
                     if (this.getRetry < this.maxRetries) {
@@ -91,18 +92,20 @@ class ItemScraper {
                         this.nextItem();
                     }
                 }
-                else if (body.text && body.text === 'no such id') {
-                    console.log('No item for the given id: ', this.itemIDs[this.current]);
-                    this.current++
-                    this.storeRetry = 0;
-                    this.failedItems.push(this.itemIDs[this.current]);
-                    this.nextItem();
-                }
                 else {
                     try {
                         const item = JSON.parse(body);
-                        this.storeRetry = 0;
-                        this.storeItem(item);
+                        if (item.text && item.text === 'no such id') {
+                            console.log('No item for the given id: ', this.itemIDs[this.current]);
+                            this.current++
+                            this.storeRetry = 0;
+                            this.failedItems.push(this.itemIDs[this.current]);
+                            this.nextItem();
+                        }
+                        else {
+                            this.storeRetry = 0;
+                            this.storeItem(item);
+                        }
                     }
                     catch(e) {
                         if (this.getRetry < this.maxRetries) {
